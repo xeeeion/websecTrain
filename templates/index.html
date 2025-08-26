@@ -1,0 +1,68 @@
+
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AppSec Dojo — Python</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>AppSec Dojo (Python)</h1>
+      <p class="subtitle">Duolingo-стайл тренажёр для middle/senior Web AppSec</p>
+    </header>
+    <section class="card">
+      <div class="row">
+        <button id="btn-start" class="primary">Начать сессию (15 вопросов)</button>
+        <button id="btn-review" class="secondary">Повторить ошибки</button>
+        <select id="difficulty">
+          <option value="any">Сложность: любая</option>
+          <option value="mid">Средняя</option>
+          <option value="senior">Сеньор</option>
+        </select>
+        <select id="topic">
+          <option value="any">Тема: любая</option>
+          <option value="csp">CSP</option>
+          <option value="cors">CORS</option>
+          <option value="ssrf">SSRF</option>
+          <option value="browser-policies">Политики браузера</option>
+          <option value="owasp">OWASP Top 10</option>
+          <option value="dast">DAST/Fuzzing</option>
+          <option value="arch">Архитектура/Яндекс 360</option>
+          <option value="java">Java/Spring/PLSQL</option>
+        </select>
+      </div>
+      <div class="stats">
+        <span>Счёт: <b id="score">0</b></span>
+        <span>Серия: <b id="streak">0</b></span>
+        <span>Лучшее: <b id="best">0</b></span>
+      </div>
+    </section>
+    <section id="quiz" class="card hidden">
+      <div id="progress"></div>
+      <div id="question"></div>
+      <ul id="answers"></ul>
+      <div id="feedback"></div>
+      <div class="row">
+        <button id="btn-next" class="primary" disabled>Дальше</button>
+        <button id="btn-skip" class="ghost">Пропустить</button>
+      </div>
+    </section>
+    <section id="result" class="card hidden">
+      <h2>Сессия завершена</h2>
+      <p>Верных: <b id="res-correct">0</b> из <b id="res-total">0</b></p>
+      <p>Точность: <b id="res-acc">0%</b></p>
+      <div class="row">
+        <button id="btn-again" class="primary">Новая сессия</button>
+        <button id="btn-export" class="secondary">Экспорт результатов (JSON)</button>
+      </div>
+    </section>
+    <footer>
+      <small>SSDLC: строгие заголовки, rate-limit, отсутствие сторонних CDN, минимум PII.</small>
+    </footer>
+  </div>
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>
