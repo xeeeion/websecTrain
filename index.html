@@ -1,67 +1,199 @@
-
 <!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AppSec Dojo — Python</title>
+  <title>AppSec Middle+ Trainer</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
   <div class="app">
-    <header>
-      <h1>AppSec Dojo (Python)</h1>
-      <p class="subtitle">Duolingo-стайл тренажёр для middle/senior Web AppSec</p>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Middle+ AppSec practice</p>
+        <h1>AppSec Middle+ Trainer</h1>
+        <p class="subtitle">Dashboard, каталог тем, вопросы, labs, кейсы и interview mode на базе AppSec/DevSecOps контента.</p>
+      </div>
+      <div class="level-card">
+        <span>Уровень</span>
+        <strong id="level-label">Junior</strong>
+        <button id="btn-logout" class="ghost hidden">Выйти</button>
+      </div>
     </header>
-    <section class="card">
-      <div class="row">
-        <button id="btn-start" class="primary">Начать сессию (15 вопросов)</button>
-        <button id="btn-review" class="secondary">Повторить ошибки</button>
-        <select id="difficulty">
-          <option value="any">Сложность: любая</option>
-          <option value="mid">Средняя</option>
-          <option value="senior">Сеньор</option>
-        </select>
-        <select id="topic">
-          <option value="any">Тема: любая</option>
-          <option value="csp">CSP</option>
-          <option value="cors">CORS</option>
-          <option value="ssrf">SSRF</option>
-          <option value="browser-policies">Политики браузера</option>
-          <option value="owasp">OWASP Top 10</option>
-          <option value="dast">DAST/Fuzzing</option>
-          <option value="arch">Архитектура/Яндекс 360</option>
-          <option value="java">Java/Spring/PLSQL</option>
-        </select>
-      </div>
-      <div class="stats">
-        <span>Счёт: <b id="score">0</b></span>
-        <span>Серия: <b id="streak">0</b></span>
-        <span>Лучшее: <b id="best">0</b></span>
-      </div>
+
+    <section id="auth-view" class="auth-view">
+      <form id="login-form" class="panel auth-panel">
+        <h2>Вход</h2>
+        <p class="muted">Войди, чтобы прогресс хранился на сервере. Админ может сбрасывать прогресс выбранным пользователям.</p>
+        <label>
+          Логин
+          <input id="login-username" autocomplete="username">
+        </label>
+        <label>
+          Пароль
+          <input id="login-password" type="password" autocomplete="current-password">
+        </label>
+        <div id="login-error" class="form-error"></div>
+        <div class="row">
+          <button class="primary" type="submit">Войти</button>
+          <button id="btn-show-register" class="secondary" type="button">Регистрация</button>
+        </div>
+        <p class="muted compact-text">Админ задаётся в `.env`: `ADMIN_USERNAME` и `ADMIN_PASSWORD`.</p>
+      </form>
+
+      <form id="register-form" class="panel auth-panel hidden">
+        <h2>Регистрация</h2>
+        <p class="muted">Создай обычного пользователя. Прогресс будет храниться на сервере.</p>
+        <label>
+          Логин
+          <input id="register-username" autocomplete="username" placeholder="3-32: letters, digits, . _ -">
+        </label>
+        <label>
+          Пароль
+          <input id="register-password" type="password" autocomplete="new-password" placeholder="Минимум 8 символов">
+        </label>
+        <div id="register-error" class="form-error"></div>
+        <div class="row">
+          <button class="primary" type="submit">Зарегистрироваться</button>
+          <button id="btn-show-login" class="secondary" type="button">Уже есть аккаунт</button>
+        </div>
+      </form>
     </section>
-    <section id="quiz" class="card hidden">
-      <div id="progress"></div>
-      <div id="question"></div>
-      <ul id="answers"></ul>
-      <div id="feedback"></div>
-      <div class="row">
-        <button id="btn-next" class="primary" disabled>Дальше</button>
-        <button id="btn-skip" class="ghost">Пропустить</button>
-      </div>
+
+    <section id="app-shell" class="hidden">
+      <nav class="tabs" aria-label="Основные разделы">
+        <button class="tab active" data-view="dashboard">Dashboard</button>
+        <button class="tab" data-view="catalog">Каталог</button>
+        <button class="tab" data-view="trainer">Тренировка</button>
+        <button id="admin-tab" class="tab hidden" data-view="admin">Админ</button>
+      </nav>
+
+      <main>
+        <section id="dashboard" class="view active">
+          <div class="metrics">
+            <article>
+              <span>Прогресс</span>
+              <strong id="metric-progress">0%</strong>
+            </article>
+            <article>
+              <span>Верных ответов</span>
+              <strong id="metric-correct">0</strong>
+            </article>
+            <article>
+              <span>Streak</span>
+              <strong id="metric-streak">0</strong>
+            </article>
+            <article>
+              <span title="Confidence — самооценка уверенности: насколько ответ был осознанным, а не угаданным.">Confidence</span>
+              <strong id="metric-confidence">0%</strong>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel">
+              <div class="section-head">
+                <h2>Направления</h2>
+                <button id="btn-start-recommended" class="secondary">Следующий модуль</button>
+              </div>
+              <div id="topic-progress" class="topic-progress"></div>
+            </section>
+
+            <section class="panel">
+              <h2>Слабые темы</h2>
+              <div id="weak-topics" class="stack"></div>
+              <h2>Последние попытки</h2>
+              <div id="attempts" class="stack compact"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="catalog" class="view">
+          <div class="section-head">
+            <h2>Каталог тем</h2>
+            <div class="filters">
+              <select id="catalog-level">
+                <option value="any">Любой уровень</option>
+                <option value="middle">Middle</option>
+                <option value="middle+">Middle+</option>
+              </select>
+            </div>
+          </div>
+          <div id="topic-cards" class="catalog-grid"></div>
+        </section>
+
+        <section id="trainer" class="view">
+          <section class="panel">
+            <div class="trainer-head">
+              <div>
+                <h2 id="session-title">Тренировка</h2>
+                <p id="session-meta" class="muted">Выбери тему, тип заданий и начни сессию.</p>
+              </div>
+              <div class="filters">
+                <select id="topic-filter"></select>
+                <select id="type-filter">
+                  <option value="any">Все типы</option>
+                  <option value="single">Single Choice</option>
+                  <option value="multiple">Multiple Choice</option>
+                  <option value="truefalse">True / False</option>
+                </select>
+                <button id="btn-start" class="primary">Начать</button>
+                <button id="btn-review" class="secondary">Ошибки</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="quiz" class="panel hidden">
+            <div class="question-topline">
+              <span id="progress"></span>
+              <span id="task-kind"></span>
+            </div>
+            <h3 id="question"></h3>
+            <div id="scenario" class="scenario hidden"></div>
+            <ul id="answers" class="answers"></ul>
+            <textarea id="open-answer" class="open-answer hidden" rows="7" placeholder="Fallback для будущих открытых заданий: оценка идёт по rubric/ключевым критериям, не по дословному совпадению с разбором."></textarea>
+            <div class="confidence">
+              <label for="confidence-range" title="Confidence — твоя самооценка уверенности: насколько ответ был осознанным, а не угаданным.">Confidence</label>
+              <input id="confidence-range" type="range" min="0" max="100" value="60">
+              <strong id="confidence-value">60%</strong>
+            </div>
+            <p class="muted compact-text">Confidence не влияет на правильность напрямую; он помогает видеть, где ты угадываешь, а где отвечаешь уверенно.</p>
+            <div id="feedback" class="feedback"></div>
+            <div class="row">
+              <button id="btn-check" class="primary">Проверить</button>
+              <button id="btn-next" class="secondary" disabled>Дальше</button>
+              <button id="btn-skip" class="ghost">Пропустить</button>
+            </div>
+          </section>
+
+          <section id="result" class="panel hidden">
+            <h2>Сессия завершена</h2>
+            <div class="result-grid">
+              <span>Верных: <b id="res-correct">0</b> из <b id="res-total">0</b></span>
+              <span>Точность: <b id="res-acc">0%</b></span>
+              <span title="Средняя самооценка уверенности за сессию">Confidence: <b id="res-confidence">0%</b></span>
+            </div>
+            <div class="row">
+              <button id="btn-again" class="primary">Новая сессия</button>
+              <button id="btn-export" class="secondary">Экспорт JSON</button>
+            </div>
+          </section>
+        </section>
+
+        <section id="admin" class="view">
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <h2>Пользователи</h2>
+                <p class="muted">Админ может сбросить прогресс выбранному пользователю.</p>
+              </div>
+              <button id="btn-refresh-users" class="secondary">Обновить</button>
+            </div>
+            <div id="admin-users" class="user-list"></div>
+            <div id="admin-message" class="feedback"></div>
+          </section>
+        </section>
+      </main>
     </section>
-    <section id="result" class="card hidden">
-      <h2>Сессия завершена</h2>
-      <p>Верных: <b id="res-correct">0</b> из <b id="res-total">0</b></p>
-      <p>Точность: <b id="res-acc">0%</b></p>
-      <div class="row">
-        <button id="btn-again" class="primary">Новая сессия</button>
-        <button id="btn-export" class="secondary">Экспорт результатов (JSON)</button>
-      </div>
-    </section>
-    <footer>
-      <small>SSDLC: строгие заголовки, rate-limit, отсутствие сторонних CDN, минимум PII.</small>
-    </footer>
   </div>
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </body>
