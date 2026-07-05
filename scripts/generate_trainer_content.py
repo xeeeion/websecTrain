@@ -5,9 +5,12 @@ from pathlib import Path
 
 
 DEFAULT_SOURCE = Path(r"C:\Users\dioni\Downloads\appsec_middle_plus_trainer.md")
+DEFAULT_EXTRA_SOURCE = Path("content/appsec_interview_questions_ru.json")
 
 TOPICS = [
+    ("appsec-basics", "AppSec Basics", "Базовые понятия application security, тестирование, уязвимости, криптография и защитные меры.", "middle"),
     ("ssdlc", "SSDLC", "Security requirements, secure design review, release gates and risk acceptance.", "middle"),
+    ("risk-ownership", "Risk Ownership", "Риск-ориентированное владение безопасностью продукта, risk register, gates и приоритизация.", "middle+"),
     ("dast", "DAST", "Authenticated scans, API coverage, active/passive testing and evidence.", "middle+"),
     ("api", "API Security", "BOLA, authz, GraphQL, OpenAPI testing and abuse cases.", "middle+"),
     ("fuzzing", "Web/API Fuzzing", "Payload design, boundary values, stateful API fuzzing and safe execution.", "middle"),
@@ -17,6 +20,9 @@ TOPICS = [
     ("kubernetes", "Kubernetes Security", "RBAC, NetworkPolicy, securityContext, admission control and runtime detection.", "middle+"),
     ("threat-modeling", "Threat Modeling", "Trust boundaries, DFD, STRIDE, abuse stories and design review questions.", "middle"),
     ("cicd", "CI/CD Security Gates", "Baselines, blocking rules, exceptions, owner, expiry, SLA and delivery-safe gates.", "middle+"),
+    ("mobile", "Mobile Security", "Практическое тестирование iOS/Android, хранение секретов, pinning, MASVS и мобильный baseline.", "middle+"),
+    ("secrets", "Secrets Management", "Поиск, ротация и предотвращение утечек секретов в коде, CI/CD и артефактах.", "middle+"),
+    ("regulatory", "Regulatory Evidence", "Перевод AppSec-рисков в понятные evidence для аудита, банковских и регулируемых сред.", "middle+"),
     ("triage", "Vulnerability Triage", "False positives, exploitability, severity normalization, remediation and SLA.", "middle+"),
     ("interview", "Interview Preparation", "Open-ended Middle+ AppSec interview questions and expected reasoning.", "middle+"),
 ]
@@ -230,7 +236,11 @@ def humanize(value):
     if isinstance(value, list):
         return [humanize(item) for item in value]
     if isinstance(value, dict):
-        return {key: humanize(item) for key, item in value.items()}
+        preserved = {"id", "topic", "level", "type", "typeLabel", "answer"}
+        return {
+            key: item if key in preserved else humanize(item)
+            for key, item in value.items()
+        }
     return value
 
 
@@ -521,6 +531,26 @@ def enrich_with_rubric_choices(card):
     return card
 
 
+def load_extra_cards(path=DEFAULT_EXTRA_SOURCE):
+    if not path.exists():
+        return []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    cards = data.get("questions", data) if isinstance(data, dict) else data
+    normalized = []
+    for card in cards:
+        item = dict(card)
+        item.setdefault("level", "middle+")
+        item.setdefault("type", "single")
+        item.setdefault("typeLabel", TYPE_LABELS.get(item["type"], item["type"].title()))
+        item.setdefault("choices", [])
+        item.setdefault("answer", None)
+        item.setdefault("expectedAnswer", item.get("explain", ""))
+        item.setdefault("explain", item.get("expectedAnswer", ""))
+        item.setdefault("redFlags", "")
+        normalized.append(item)
+    return normalized
+
+
 def main():
     source = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_SOURCE
     out_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("static")
@@ -539,6 +569,7 @@ def main():
             "answer": None,
             "explain": task["expectedAnswer"],
         })
+    cards.extend(load_extra_cards())
 
     seen = set()
     deduped = []
