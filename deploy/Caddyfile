@@ -14,12 +14,7 @@ http://{$DOMAIN} {
   }
   respond @blocked 404
 
-  reverse_proxy app:8000 {
-    header_up X-Real-IP {remote_host}
-    header_up X-Forwarded-For {remote_host}
-    header_up X-Forwarded-Proto {scheme}
-    header_up X-Forwarded-Host {host}
-  }
+  reverse_proxy app:8000
 
   header {
     Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
