@@ -1,4 +1,5 @@
 import json
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -551,6 +552,30 @@ def load_extra_cards(path=DEFAULT_EXTRA_SOURCE):
     return normalized
 
 
+def shuffle_choice_order(card):
+    choices = card.get("choices") or []
+    answer = card.get("answer")
+    if not choices or answer is None:
+        return card
+
+    correct_indexes = set(answer if isinstance(answer, list) else [answer])
+    pairs = list(enumerate(choices))
+    pairs.sort(
+        key=lambda pair: hashlib.sha256(
+            f"{card['id']}::{pair[1]}::{pair[0]}".encode("utf-8")
+        ).hexdigest()
+    )
+
+    card["choices"] = [choice for _, choice in pairs]
+    remapped = [
+        new_index
+        for new_index, (old_index, _) in enumerate(pairs)
+        if old_index in correct_indexes
+    ]
+    card["answer"] = remapped if isinstance(answer, list) else remapped[0]
+    return card
+
+
 def main():
     source = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_SOURCE
     out_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("static")
@@ -579,7 +604,7 @@ def main():
         seen.add(card["id"])
         deduped.append(card)
 
-    deduped = [humanize(enrich_with_rubric_choices(card)) for card in deduped]
+    deduped = [shuffle_choice_order(humanize(enrich_with_rubric_choices(card))) for card in deduped]
 
     topic_counts = {topic_id: 0 for topic_id, *_ in TOPICS}
     lab_counts = {topic_id: 0 for topic_id, *_ in TOPICS}
