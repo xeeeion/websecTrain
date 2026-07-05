@@ -129,3 +129,51 @@ docker compose restart
 docker compose down
 docker volume ls
 ```
+
+## 8. Если Caddy не получает сертификат
+
+Если в логах есть ошибка вида:
+
+```text
+lookup acme-v02.api.letsencrypt.org on 8.8.8.8:53: connect: network is unreachable
+```
+
+значит Caddy запустился, но контейнер не может выйти в интернет или сделать DNS-запрос. Это проблема сети Docker/VPS, а не Flask-приложения.
+
+Проверь с хоста:
+
+```bash
+curl -I https://acme-v02.api.letsencrypt.org/directory
+ping -c 3 1.1.1.1
+```
+
+Проверь из контейнера:
+
+```bash
+docker compose exec caddy nslookup acme-v02.api.letsencrypt.org
+docker compose exec caddy wget -S -O- https://acme-v02.api.letsencrypt.org/directory
+docker compose exec caddy ip route
+```
+
+Текущий `docker-compose.yml` запускает Caddy в `network_mode: host`, поэтому Caddy использует сеть хоста для DNS и выпуска сертификата. Приложение при этом опубликовано только на `127.0.0.1:8000` и не доступно напрямую из интернета.
+
+Если ты вернул Caddy в обычную Docker bridge-сеть и на хосте интернет есть, а в контейнере нет, проверь forwarding/NAT Docker:
+
+```bash
+sudo sysctl net.ipv4.ip_forward
+sudo iptables -t nat -L POSTROUTING -n -v
+sudo iptables -L FORWARD -n -v
+sudo systemctl restart docker
+docker compose up -d
+```
+
+На Ubuntu с UFW часто помогает разрешить маршрутизацию Docker-трафика:
+
+```bash
+sudo ufw status verbose
+sudo ufw default allow routed
+sudo systemctl restart docker
+docker compose up -d
+```
+
+После исправления сети Caddy сам повторит выпуск сертификата.

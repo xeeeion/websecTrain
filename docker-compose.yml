@@ -13,22 +13,17 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    expose:
-      - "8000"
+    ports:
+      - "127.0.0.1:8000:8000"
 
   caddy:
     image: caddy:2.8-alpine
     restart: unless-stopped
     depends_on:
       - app
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
+    network_mode: host
     environment:
       DOMAIN: ${DOMAIN}
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
