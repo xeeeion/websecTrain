@@ -21,10 +21,11 @@
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+export SESSION_COOKIE_SECURE=0  # Windows PowerShell: $env:SESSION_COOKIE_SECURE="0"
 python app.py
 ```
 
-Открой `http://localhost:8080`.
+Открой `http://localhost:8000`.
 
 ## Пользователи
 
@@ -76,10 +77,11 @@ docker build -t appsec-middle-trainer .
 docker volume create appsec-middle-data
 docker run -d \
   --name appsec-middle-trainer \
-  -p 8080:8080 \
+  -p 8000:8000 \
   -e SECRET_KEY="change-me-to-a-random-long-value" \
   -e ADMIN_USERNAME="admin" \
   -e ADMIN_PASSWORD="strong-admin-password" \
+  -e SESSION_COOKIE_SECURE=0 \
   -v appsec-middle-data:/app/data \
   appsec-middle-trainer
 ```
@@ -89,5 +91,5 @@ docker run -d \
 Проверка:
 
 ```bash
-curl http://localhost:8080/healthz
+curl http://localhost:8000/healthz
 ```

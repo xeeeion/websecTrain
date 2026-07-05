@@ -4,6 +4,7 @@ from functools import wraps
 from flask import Flask, render_template, jsonify, request, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 import json
 import os
@@ -28,13 +29,21 @@ def load_dotenv(path=".env"):
 load_dotenv()
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
+if os.getenv("TRUST_PROXY_HEADERS", "1") == "1":
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.secret_key = os.getenv("SECRET_KEY", "dev-change-me")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "1") == "1",
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
 )
-limiter = Limiter(get_remote_address, app=app, default_limits=["100 per minute"])
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["100 per minute"],
+    storage_uri=os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
+)
 DATA_DIR = os.path.join(app.root_path, "data")
 USERS_PATH = os.path.join(DATA_DIR, "users.json")
 MAX_LOGIN_FAILURES = int(os.getenv("MAX_LOGIN_FAILURES", "5"))
@@ -54,6 +63,30 @@ CSP = {
     "frame-ancestors": "'none'",
 }
 CSP_HEADER = "; ".join([f"{k} {v}" for k, v in CSP.items()])
+PROTECTED_STATIC_SUFFIXES = (".json",)
+STATE_CHANGING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+@app.before_request
+def reject_cross_origin_state_changes():
+    if request.method not in STATE_CHANGING_METHODS:
+        return None
+    origin = request.headers.get("Origin")
+    if not origin:
+        return None
+    expected_origin = request.host_url.rstrip("/")
+    if origin.rstrip("/") != expected_origin:
+        return jsonify({"error": "bad_origin"}), 403
+    return None
+
+
+@app.before_request
+def protect_static_content_files():
+    if request.path.startswith("/static/") and request.path.endswith(PROTECTED_STATIC_SUFFIXES):
+        if not current_user():
+            return jsonify({"error": "auth_required"}), 401
+    return None
+
 
 @app.after_request
 def set_headers(resp):
@@ -375,5 +408,5 @@ def no_cache_index(resp):
 ensure_users()
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8080"))
+    port = int(os.getenv("PORT", "8000"))
     app.run(host="0.0.0.0", port=port)

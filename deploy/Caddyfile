@@ -1,0 +1,31 @@
+http://{$DOMAIN} {
+  redir https://{$DOMAIN}{uri} permanent
+}
+
+{$DOMAIN}:443 {
+  encode zstd gzip
+
+  request_body {
+    max_size 1MB
+  }
+
+  @blocked {
+    path /.env /.git* /data/* /content/* /scripts/* /Dockerfile /docker-compose.yml /DEPLOY.md /requirements.txt /app.py /questions.json /static/questions.json /static/trainer_content.json
+  }
+  respond @blocked 404
+
+  reverse_proxy app:8000 {
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-Host {host}
+  }
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options nosniff
+    Referrer-Policy no-referrer
+    X-Frame-Options DENY
+    -Server
+  }
+}
